@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks · FastAPI 全栈练习</title>
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --card: #ffffff;
+    --ink: #1b1a17;
+    --muted: #6f6b63;
+    --line: #e4e0d8;
+    --accent: #0f766e;
+    --accent-ink: #ffffff;
+    --danger: #b3392f;
+    --shadow: 0 1px 2px rgba(27, 26, 23, 0.04), 0 8px 24px rgba(27, 26, 23, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141518;
+      --card: #1c1e22;
+      --ink: #e9e6df;
+      --muted: #9d988e;
+      --line: #2c2f34;
+      --accent: #4fd1c5;
+      --accent-ink: #10201e;
+      --danger: #ef8a80;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.28);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+      "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  body { min-height: 100vh; }
+
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3.2rem 1.25rem 5rem;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  h1 {
+    font-size: 1.9rem;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.25rem;
+    font-weight: 650;
+  }
+
+  .sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+
+  .status.online .dot { background: #22a06b; box-shadow: 0 0 0 3px rgba(34, 160, 107, 0.15); }
+  .status.offline .dot { background: var(--danger); }
+
+  /* 新增任务 */
+  .composer {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.6rem;
+  }
+
+  .composer input,
+  .composer textarea {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    resize: vertical;
+    outline: none;
+  }
+
+  .composer input {
+    font-size: 1.02rem;
+    font-weight: 550;
+    padding: 0.15rem 0;
+  }
+
+  .composer input::placeholder,
+  .composer textarea::placeholder { color: var(--muted); opacity: 0.75; }
+
+  .composer textarea {
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+    min-height: 1.6rem;
+    max-height: 9rem;
+  }
+
+  .composer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.7rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .hint { font-size: 0.75rem; color: var(--muted); }
+
+  .add {
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 550;
+    padding: 0.5rem 1.1rem;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .add:hover { opacity: 0.9; }
+  .add:active { transform: translateY(1px); }
+  .add:disabled { opacity: 0.5; cursor: default; }
+
+  /* 过滤 */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .filters { display: flex; gap: 0.3rem; }
+
+  .filter {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .filter:hover { color: var(--ink); }
+
+  .filter.active {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .count { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* 列表 */
+  .list { display: flex; flex-direction: column; gap: 0.55rem; }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 0.85rem 0.95rem;
+    transition: border-color 0.15s, opacity 0.15s;
+  }
+
+  .task:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+
+  .task.done { opacity: 0.62; }
+  .task.done .title { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+  .check {
+    flex: none;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-top: 0.2rem;
+    border: 1.5px solid var(--line);
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    background: transparent;
+    padding: 0;
+  }
+
+  .check:hover { border-color: var(--accent); }
+
+  .check.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .check.checked::after {
+    content: "";
+    position: absolute;
+    left: 0.32rem;
+    top: 0.09rem;
+    width: 0.28rem;
+    height: 0.55rem;
+    border: solid var(--accent-ink);
+    border-width: 0 1.6px 1.6px 0;
+    transform: rotate(45deg);
+  }
+
+  .body { flex: 1; min-width: 0; }
+
+  .title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 550;
+    word-break: break-word;
+  }
+
+  .desc {
+    margin: 0.15rem 0 0;
+    font-size: 0.83rem;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .del {
+    flex: none;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.1rem 0.25rem;
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+
+  .task:hover .del, .del:focus-visible { opacity: 1; }
+  .del:hover { color: var(--danger); }
+
+  .empty {
+    text-align: center;
+    padding: 3.5rem 1rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .empty strong {
+    display: block;
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 550;
+    margin-bottom: 0.3rem;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+  }
+
+  footer code {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.72rem;
+  }
+
+  /* 提示条 */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.6rem;
+    transform: translate(-50%, 1rem);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 0.82rem;
+    padding: 0.55rem 1rem;
+    border-radius: 7px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    max-width: min(90vw, 32rem);
+  }
+
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 520px) {
+    .wrap { padding-top: 2rem; }
+    h1 { font-size: 1.55rem; }
+    .toolbar { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+    .del { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Tasks</h1>
+      <p class="sub">FastAPI + SQLite · 前端直接调后端</p>
+    </div>
+    <span class="status" id="status"><span class="dot"></span><span id="statusText">连接中</span></span>
+  </header>
+
+  <form class="composer" id="form">
+    <input id="title" type="text" placeholder="要做什么？" maxlength="100" autocomplete="off" required>
+    <textarea id="desc" placeholder="补充说明（可选）" rows="1" maxlength="2000"></textarea>
+    <div class="composer-row">
+      <span class="hint">Enter 提交 · Shift + Enter 换行</span>
+      <button class="add" id="submitBtn" type="submit">添加任务</button>
+    </div>
+  </form>
+
+  <div class="toolbar">
+    <div class="filters" role="tablist">
+      <button class="filter active" data-filter="all" type="button">全部</button>
+      <button class="filter" data-filter="active" type="button">未完成</button>
+      <button class="filter" data-filter="done" type="button">已完成</button>
+    </div>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>
+    <span>API：<code>GET /tasks</code></span>
+    <span><code>POST /tasks</code></span>
+    <span><code>PATCH /tasks/{id}</code></span>
+    <span><code>DELETE /tasks/{id}</code></span>
+    <span>文档：<a href="/docs" style="color: inherit;">/docs</a></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const state = { tasks: [], filter: "all" };
+  const $ = (sel) => document.querySelector(sel);
+
+  const els = {
+    list: $("#list"),
+    form: $("#form"),
+    title: $("#title"),
+    desc: $("#desc"),
+    submit: $("#submitBtn"),
+    count: $("#count"),
+    status: $("#status"),
+    statusText: $("#statusText"),
+    toast: $("#toast"),
+  };
+
+  async function request(path, options = {}) {
+    const res = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+
+    if (!res.ok) {
+      let message = `请求失败（${res.status}）`;
+      try {
+        const data = await res.json();
+        if (typeof data.detail === "string") message = data.detail;
+        else if (Array.isArray(data.detail) && data.detail[0]?.msg) message = data.detail[0].msg;
+      } catch (_) { /* 响应不是 JSON 时用默认信息 */ }
+      throw new Error(message);
+    }
+
+    return res.status === 204 ? null : res.json();
+  }
+
+  let toastTimer;
+  function toast(message) {
+    els.toast.textContent = message;
+    els.toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2600);
+  }
+
+  function render() {
+    const { tasks, filter } = state;
+    const visible = tasks.filter((t) => {
+      if (filter === "active") return !t.completed;
+      if (filter === "done") return t.completed;
+      return true;
+    });
+
+    const activeCount = tasks.filter((t) => !t.completed).length;
+    els.count.textContent = `${tasks.length} 项 · ${activeCount} 未完成`;
+
+    els.list.innerHTML = "";
+
+    if (!visible.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      const strong = document.createElement("strong");
+      strong.textContent = tasks.length ? "这个分类下没有任务" : "还没有任务";
+      const p = document.createElement("span");
+      p.textContent = tasks.length ? "换个筛选条件看看" : "在上面输入第一条，回车即可";
+      empty.append(strong, p);
+      els.list.appendChild(empty);
+      return;
+    }
+
+    for (const task of visible) {
+      const item = document.createElement("article");
+      item.className = "task" + (task.completed ? " done" : "");
+
+      const check = document.createElement("button");
+      check.type = "button";
+      check.className = "check" + (task.completed ? " checked" : "");
+      check.setAttribute("aria-label", task.completed ? "标记为未完成" : "标记为完成");
+      check.addEventListener("click", () => toggleTask(task));
+
+      const body = document.createElement("div");
+      body.className = "body";
+
+      const title = document.createElement("p");
+      title.className = "title";
+      title.textContent = task.title;   // 用 textContent，避免把用户输入当 HTML 执行
+      body.appendChild(title);
+
+      if (task.description) {
+        const desc = document.createElement("p");
+        desc.className = "desc";
+        desc.textContent = task.description;
+        body.appendChild(desc);
+      }
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "del";
+      del.textContent = "×";
+      del.setAttribute("aria-label", "删除任务");
+      del.addEventListener("click", () => deleteTask(task));
+
+      item.append(check, body, del);
+      els.list.appendChild(item);
+    }
+  }
+
+  async function loadTasks() {
+    try {
+      state.tasks = await request("/tasks");
+      render();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  async function toggleTask(task) {
+    const next = !task.completed;
+    task.completed = next;
+    render();
+
+    try {
+      await request(`/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ completed: next }),
+      });
+    } catch (err) {
+      task.completed = !next;   // 失败就回滚界面状态
+      render();
+      toast(err.message);
+    }
+  }
+
+  async function deleteTask(task) {
+    state.tasks = state.tasks.filter((t) => t.id !== task.id);
+    render();
+
+    try {
+      await request(`/tasks/${task.id}`, { method: "DELETE" });
+    } catch (err) {
+      toast(err.message);
+      await loadTasks();        // 删除失败，重新拉一次真实数据
+    }
+  }
+
+  els.form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const title = els.title.value.trim();
+    if (!title) return;
+
+    els.submit.disabled = true;
+    try {
+      await request("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          description: els.desc.value.trim() || null,
+        }),
+      });
+      els.form.reset();
+      els.title.focus();
+      await loadTasks();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      els.submit.disabled = false;
+    }
+  });
+
+  // Enter 提交，Shift + Enter 在描述里换行
+  els.title.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      els.form.requestSubmit();
+    }
+  });
+
+  els.desc.addEventListener("input", () => {
+    els.desc.style.height = "auto";
+    els.desc.style.height = Math.min(els.desc.scrollHeight, 144) + "px";
+  });
+
+  document.querySelectorAll(".filter").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.filter = btn.dataset.filter;
+      document.querySelectorAll(".filter").forEach((b) => b.classList.toggle("active", b === btn));
+      render();
+    });
+  });
+
+  async function checkHealth() {
+    try {
+      const res = await fetch("/health");
+      if (!res.ok) throw new Error();
+      els.status.classList.add("online");
+      els.statusText.textContent = "API 已连接";
+    } catch (_) {
+      els.status.classList.add("offline");
+      els.status.classList.remove("online");
+      els.statusText.textContent = "API 未连接";
+    }
+  }
+
+  checkHealth();
+  loadTasks();
+</script>
+</body>
+</html>
