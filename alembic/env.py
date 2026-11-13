@@ -18,7 +18,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from main import Base
+# 导入 Base 和模型，让 autogenerate 能比较代码模型与数据库结构。
+from database import Base
+import models
 
 target_metadata = Base.metadata
 
@@ -30,6 +32,8 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
+
+    离线模式只生成 SQL，不建立数据库连接，适合检查或导出迁移语句。
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
@@ -54,6 +58,8 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
+
+    在线模式连接真实数据库并执行迁移，是本地升级数据库时使用的模式。
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
