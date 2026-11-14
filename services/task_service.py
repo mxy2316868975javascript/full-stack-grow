@@ -1,6 +1,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from errors import ValidationError
 from models import TaskDB
 from repositories import task_repository
 from schemas import TaskCreate, TaskUpdate
@@ -58,7 +59,7 @@ def update_task(
 
     updates = payload.model_dump(exclude_unset=True)
     if "title" in updates and updates["title"] is None:
-        raise ValueError("title cannot be null")
+        raise ValidationError("title cannot be null")
 
     for field, value in updates.items():
         setattr(task, field, value)

@@ -1,16 +1,19 @@
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, Response
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from database import STATIC_DIR, get_db
+from errors import NotFoundError
+from exception_handlers import register_exception_handlers
 from models import UserDB
 from schemas import TaskCreate, TaskRead, TaskUpdate, UserCreate, UserRead
 from services import auth_service, task_service
 
 
 app = FastAPI(title="Task API")
+register_exception_handlers(app)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -89,7 +92,7 @@ def get_task(
 
     task = task_service.get_owned_task(db, current_user.id, task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task not found")
     return task
 
 
@@ -102,18 +105,15 @@ def update_task(
 ):
     """更新当前用户的任务，并把业务校验错误转换为 HTTP 422。"""
 
-    try:
-        task = task_service.update_task(
-            db,
-            current_user.id,
-            task_id,
-            payload,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    task = task_service.update_task(
+        db,
+        current_user.id,
+        task_id,
+        payload,
+    )
 
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task not found")
     return task
 
 
@@ -127,5 +127,5 @@ def delete_task(
 
     deleted = task_service.delete_task(db, current_user.id, task_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task not found")
     return Response(status_code=204)

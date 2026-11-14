@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from errors import AuthenticationError, ConflictError
 from models import UserDB
 from repositories import user_repository
 from schemas import UserCreate
@@ -42,10 +43,7 @@ def register(db: Session, payload: UserCreate) -> UserDB:
     """注册用户、哈希密码并提交事务；数据库失败时回滚。"""
 
     if user_repository.get_by_username(db, payload.username) is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="Username already exists",
-        )
+        raise ConflictError("Username already exists")
 
     user = UserDB(
         username=payload.username,
@@ -67,11 +65,7 @@ def login(db: Session, username: str, password: str) -> dict[str, str]:
 
     user = user_repository.get_by_username(db, username)
     if user is None or not verify_password(password, user.password_hash):
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise AuthenticationError("Incorrect username or password")
 
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=JWT_EXPIRE_MINUTES
@@ -104,18 +98,17 @@ def get_current_user(
             algorithms=[JWT_ALGORITHM],
         )
     except InvalidTokenError:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise AuthenticationError() from None
 
     user_id = payload.get("sub")
     if user_id is None:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise AuthenticationError("Invalid token")
 
-    user = user_repository.get_by_id(db, int(user_id))
+    try:
+        user = user_repository.get_by_id(db, int(user_id))
+    except (TypeError, ValueError):
+        raise AuthenticationError("Invalid token") from None
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise AuthenticationError("User not found")
 
     return user
