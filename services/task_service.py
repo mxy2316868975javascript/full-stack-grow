@@ -1,8 +1,8 @@
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from models import TaskDB
+from repositories import task_repository
 from schemas import TaskCreate, TaskUpdate
 
 
@@ -19,7 +19,7 @@ def create_task(
     )
 
     try:
-        db.add(task)
+        task_repository.add_task(db, task)
         db.commit()
         db.refresh(task)
         return task
@@ -31,9 +31,7 @@ def create_task(
 def list_tasks(db: Session, user_id: int) -> list[TaskDB]:
     """只查询指定用户拥有的任务，避免跨用户读取数据。"""
 
-    return db.scalars(
-        select(TaskDB).where(TaskDB.owner_id == user_id)
-    ).all()
+    return task_repository.list_by_owner(db, user_id)
 
 
 def get_owned_task(
@@ -43,12 +41,7 @@ def get_owned_task(
 ) -> TaskDB | None:
     """按任务 ID 和用户 ID 查询任务，确保任务属于当前用户。"""
 
-    return db.scalar(
-        select(TaskDB).where(
-            TaskDB.id == task_id,
-            TaskDB.owner_id == user_id,
-        )
-    )
+    return task_repository.get_by_owner(db, user_id, task_id)
 
 
 def update_task(
@@ -87,7 +80,7 @@ def delete_task(db: Session, user_id: int, task_id: int) -> bool:
         return False
 
     try:
-        db.delete(task)
+        task_repository.remove_task(db, task)
         db.commit()
         return True
     except SQLAlchemyError:
