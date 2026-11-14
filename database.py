@@ -1,20 +1,18 @@
-from pathlib import Path
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 
+from config import BASE_DIR, settings
 
-# 当前 Python 文件所在目录，用于构造稳定的项目内路径。
-BASE_DIR = Path(__file__).resolve().parent
 # 静态前端资源目录，由 main.py 挂载到 /static。
 STATIC_DIR = BASE_DIR / "static"
 
 # 使用绝对路径，避免从其他目录启动时创建出另一份数据库。
 # check_same_thread=False 允许 FastAPI 的工作线程使用同一个 SQLite 引擎。
-engine = create_engine(
-    f"sqlite:///{BASE_DIR / 'tasks_migration.db'}",
-    connect_args={"check_same_thread": False},
-)
+engine_options = {}
+if settings.database_url.startswith("sqlite"):
+    engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(settings.database_url, **engine_options)
 
 
 class Base(DeclarativeBase):

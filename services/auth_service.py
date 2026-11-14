@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -9,18 +8,13 @@ from pwdlib import PasswordHash
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from config import settings
 from database import get_db
 from errors import AuthenticationError, ConflictError
 from models import UserDB
 from repositories import user_repository
 from schemas import UserCreate
 
-
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-only-secret-change-later")
-# HS256 用于本地学习；生产环境应选择合适的密钥管理方案。
-JWT_ALGORITHM = "HS256"
-# 令牌有效期，过期后客户端需要重新登录。
-JWT_EXPIRE_MINUTES = 30
 
 # FastAPI 从 Authorization: Bearer <token> 请求头中提取 JWT。
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -68,15 +62,15 @@ def login(db: Session, username: str, password: str) -> dict[str, str]:
         raise AuthenticationError("Incorrect username or password")
 
     expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=JWT_EXPIRE_MINUTES
+        minutes=settings.jwt_expire_minutes
     )
     token = jwt.encode(
         {
             "sub": str(user.id),
             "exp": expires_at,
         },
-        JWT_SECRET,
-        algorithm=JWT_ALGORITHM,
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
     )
 
     return {
@@ -94,8 +88,8 @@ def get_current_user(
     try:
         payload = jwt.decode(
             token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
         )
     except InvalidTokenError:
         raise AuthenticationError() from None
