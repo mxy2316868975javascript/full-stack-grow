@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -25,6 +25,13 @@ class TaskDB(Base):
     """任务表模型，保存任务内容、状态、优先级和所属用户。"""
 
     __tablename__ = "tasks"
+
+    # 复合索引覆盖任务列表的用户过滤、筛选和排序组合。
+    __table_args__ = (
+        Index("ix_tasks_owner_id_id", "owner_id", "id"),
+        Index("ix_tasks_owner_id_priority_id", "owner_id", "priority", "id"),
+        Index("ix_tasks_owner_id_completed_id", "owner_id", "completed", "id"),
+    )
 
     # 任务主键，用于定位单条任务。
     id: Mapped[int] = mapped_column(primary_key=True)

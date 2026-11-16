@@ -1,7 +1,9 @@
+import logging
 from math import ceil
+from time import perf_counter
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Query, Response
+from fastapi import Depends, FastAPI, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -15,6 +17,9 @@ from schemas import TaskCreate, TaskPage, TaskRead, TaskUpdate, UserCreate, User
 from services import auth_service, task_service
 
 
+logger = logging.getLogger("task_api")
+
+
 app = FastAPI(title="Task API")
 register_exception_handlers(app)
 
@@ -26,6 +31,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """记录请求的基本指标，不记录密码、token 或请求体。"""
+
+    started_at = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request failed method=%s path=%s",
+            request.method,
+            request.url.path,
+        )
+        raise
+
+    duration_ms = (perf_counter() - started_at) * 1000
+    logger.info(
+        "request method=%s path=%s status=%s duration_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 @app.get("/", include_in_schema=False)

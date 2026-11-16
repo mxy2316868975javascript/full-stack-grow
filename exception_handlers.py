@@ -1,8 +1,13 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from errors import AppError
+
+
+logger = logging.getLogger("task_api")
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -21,6 +26,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(SQLAlchemyError)
     async def handle_database_error(_request: Request, _exc: SQLAlchemyError):
         """隐藏数据库内部细节，避免把 SQL 或表结构泄露给客户端。"""
+
+        logger.exception("database operation failed")
 
         return JSONResponse(
             status_code=500,

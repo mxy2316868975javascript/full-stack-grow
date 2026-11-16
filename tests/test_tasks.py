@@ -1,3 +1,5 @@
+import logging
+
 from .test_auth import login, register
 
 
@@ -17,6 +19,19 @@ def test_unauthenticated_user_cannot_list_tasks(client):
     response = client.get("/tasks")
 
     assert response.status_code == 401
+
+
+def test_requests_write_basic_access_logs(client, caplog):
+    """请求日志应包含方法、路径和状态码，不依赖业务响应内容。"""
+
+    with caplog.at_level(logging.INFO, logger="task_api"):
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert any(
+        "request method=GET path=/health status=200" in record.getMessage()
+        for record in caplog.records
+    )
 
 
 def test_users_only_see_their_own_tasks(client):
