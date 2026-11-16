@@ -42,6 +42,21 @@ class TaskRead(BaseModel):
     priority: int
 
 
+class TaskPage(BaseModel):
+    """任务分页响应，包含当前页数据和分页元信息。"""
+
+    # 当前页任务，任务本身仍然不暴露 owner_id。
+    items: list[TaskRead]
+    # 当前页码，从 1 开始。
+    page: int
+    # 每页最多返回的任务数量。
+    page_size: int
+    # 当前用户的任务总数。
+    total: int
+    # 按 page_size 计算出的总页数。
+    pages: int
+
+
 class UserCreate(BaseModel):
     """注册用户时接收的用户名和明文密码。"""
 

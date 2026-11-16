@@ -1,12 +1,12 @@
 from .test_auth import login, register
 
 
-def create_task(client, token: str, title: str):
+def create_task(client, token: str, title: str, priority: int = 1):
     """使用指定用户的 token 创建任务。"""
 
     return client.post(
         "/tasks",
-        json={"title": title, "priority": 1},
+        json={"title": title, "priority": priority},
         headers={"Authorization": f"Bearer {token}"},
     )
 
@@ -43,8 +43,88 @@ def test_users_only_see_their_own_tasks(client):
         headers={"Authorization": f"Bearer {bob_token}"},
     )
 
-    assert [task["title"] for task in alice_tasks.json()] == ["Alice task"]
-    assert [task["title"] for task in bob_tasks.json()] == ["Bob task"]
+    assert alice_tasks.json()["total"] == 1
+    assert bob_tasks.json()["total"] == 1
+    assert [task["title"] for task in alice_tasks.json()["items"]] == ["Alice task"]
+    assert [task["title"] for task in bob_tasks.json()["items"]] == ["Bob task"]
+
+
+def test_tasks_are_paginated(client):
+    """任务列表应按页返回，并提供总数和总页数。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+
+    for index in range(25):
+        response = create_task(client, token, f"Task {index + 1}")
+        assert response.status_code == 201
+
+    response = client.get(
+        "/tasks?page=2&page_size=10",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["page"] == 2
+    assert response.json()["page_size"] == 10
+    assert response.json()["total"] == 25
+    assert response.json()["pages"] == 3
+    assert [task["title"] for task in response.json()["items"]] == [
+        f"Task {index}" for index in range(11, 21)
+    ]
+
+
+def test_task_pagination_parameters_are_validated(client):
+    """页码和每页数量超出范围时应由 FastAPI 返回 422。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/tasks?page=0", headers=headers).status_code == 422
+    assert client.get("/tasks?page_size=101", headers=headers).status_code == 422
+
+
+def test_tasks_can_be_filtered(client):
+    """任务列表应支持完成状态、优先级和组合筛选。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    completed_task = create_task(client, token, "Completed", priority=2).json()
+    active_task = create_task(client, token, "Active", priority=3).json()
+    client.patch(
+        f"/tasks/{completed_task['id']}",
+        json={"completed": True},
+        headers=headers,
+    )
+
+    completed = client.get("/tasks?completed=true", headers=headers)
+    priority = client.get("/tasks?priority=3", headers=headers)
+    combined = client.get(
+        "/tasks?completed=false&priority=3",
+        headers=headers,
+    )
+
+    assert completed.json()["total"] == 1
+    assert completed.json()["items"][0]["title"] == "Completed"
+    assert priority.json()["total"] == 1
+    assert priority.json()["items"][0]["title"] == "Active"
+    assert combined.json()["total"] == 1
+    assert combined.json()["items"][0]["title"] == "Active"
+
+
+def test_task_filter_parameters_are_validated(client):
+    """优先级超出任务模型范围时应由 FastAPI 返回 422。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+
+    assert client.get(
+        "/tasks?priority=6",
+        headers={"Authorization": f"Bearer {token}"},
+    ).status_code == 422
 
 
 def test_user_cannot_update_or_delete_another_users_task(client):

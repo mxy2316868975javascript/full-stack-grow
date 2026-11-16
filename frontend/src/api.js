@@ -65,7 +65,7 @@ export const api = {
       body: new URLSearchParams({ username, password }),
     }),
   me: () => request("/auth/me"),
-  listTasks: () => request("/tasks"),
+  listTasks: async () => (await request("/tasks")).items,
   createTask: (payload) =>
     request("/tasks", {
       method: "POST",

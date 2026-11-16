@@ -29,10 +29,27 @@ def create_task(
         raise
 
 
-def list_tasks(db: Session, user_id: int) -> list[TaskDB]:
-    """只查询指定用户拥有的任务，避免跨用户读取数据。"""
+def list_tasks(
+    db: Session,
+    user_id: int,
+    page: int,
+    page_size: int,
+    completed: bool | None = None,
+    priority: int | None = None,
+) -> tuple[list[TaskDB], int]:
+    """按筛选条件查询当前用户的一页任务，并返回匹配总数。"""
 
-    return task_repository.list_by_owner(db, user_id)
+    offset = (page - 1) * page_size
+    tasks = task_repository.list_by_owner(
+        db,
+        user_id,
+        offset,
+        page_size,
+        completed,
+        priority,
+    )
+    total = task_repository.count_by_owner(db, user_id, completed, priority)
+    return tasks, total
 
 
 def get_owned_task(

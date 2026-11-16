@@ -1,4 +1,6 @@
-from fastapi import Depends, FastAPI, Response
+from math import ceil
+
+from fastapi import Depends, FastAPI, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -8,7 +10,7 @@ from database import get_db
 from errors import NotFoundError
 from exception_handlers import register_exception_handlers
 from models import UserDB
-from schemas import TaskCreate, TaskRead, TaskUpdate, UserCreate, UserRead
+from schemas import TaskCreate, TaskPage, TaskRead, TaskUpdate, UserCreate, UserRead
 from services import auth_service, task_service
 
 
@@ -79,14 +81,32 @@ def create_task(
     return task_service.create_task(db, current_user.id, payload)
 
 
-@app.get("/tasks", response_model=list[TaskRead])
+@app.get("/tasks", response_model=TaskPage)
 def list_tasks(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    completed: bool | None = Query(default=None),
+    priority: int | None = Query(default=None, ge=0, le=5),
     current_user: UserDB = Depends(auth_service.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """返回当前用户拥有的任务列表。"""
+    """返回当前用户的一页任务和分页元信息。"""
 
-    return task_service.list_tasks(db, current_user.id)
+    tasks, total = task_service.list_tasks(
+        db,
+        current_user.id,
+        page,
+        page_size,
+        completed,
+        priority,
+    )
+    return {
+        "items": tasks,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "pages": ceil(total / page_size),
+    }
 
 
 @app.get("/tasks/{task_id}", response_model=TaskRead)
