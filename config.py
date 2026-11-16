@@ -18,6 +18,8 @@ class Settings:
     jwt_algorithm: str
     # JWT 从签发开始可以使用多少分钟。
     jwt_expire_minutes: int
+    # 允许跨域访问 API 的前端地址，多个地址用逗号分隔。
+    cors_origins: tuple[str, ...]
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -33,6 +35,14 @@ class Settings:
             jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
             jwt_expire_minutes=int(
                 os.getenv("JWT_EXPIRE_MINUTES", "30")
+            ),
+            cors_origins=tuple(
+                origin.strip()
+                for origin in os.getenv(
+                    "CORS_ORIGINS",
+                    "http://localhost:5173,http://127.0.0.1:5173",
+                ).split(",")
+                if origin.strip()
             ),
         )
 

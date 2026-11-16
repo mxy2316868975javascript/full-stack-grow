@@ -1,9 +1,11 @@
 from fastapi import Depends, FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
+from config import settings
 from database import STATIC_DIR, get_db
 from errors import NotFoundError
 from exception_handlers import register_exception_handlers
@@ -14,6 +16,15 @@ from services import auth_service, task_service
 
 app = FastAPI(title="Task API")
 register_exception_handlers(app)
+
+# 允许独立运行的前端开发服务器访问 API；生产环境应只配置可信前端域名。
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.cors_origins),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

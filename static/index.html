@@ -73,6 +73,96 @@
     font-size: 0.88rem;
   }
 
+  [hidden] { display: none !important; }
+
+  .auth-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.6rem;
+  }
+
+  .auth-header,
+  .auth-user {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .auth-header { margin-bottom: 0.8rem; }
+
+  .auth-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .auth-hint {
+    margin: 0.1rem 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .auth-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.6rem;
+  }
+
+  .auth-form input {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.88rem;
+    padding: 0.5rem 0.65rem;
+    outline: none;
+  }
+
+  .auth-form input:focus { border-color: var(--accent); }
+
+  .auth-submit,
+  .logout,
+  .auth-switch {
+    border: none;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .auth-submit {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 7px;
+    padding: 0.5rem 1rem;
+  }
+
+  .auth-submit:disabled { opacity: 0.5; cursor: default; }
+
+  .auth-switch {
+    margin-top: 0.7rem;
+    padding: 0;
+    background: none;
+    color: var(--accent);
+  }
+
+  .auth-user { font-size: 0.86rem; }
+
+  .auth-user strong { font-weight: 600; }
+
+  .logout {
+    background: none;
+    color: var(--muted);
+    padding: 0.25rem 0;
+  }
+
+  .logout:hover { color: var(--danger); }
+
   .status {
     display: inline-flex;
     align-items: center;
@@ -334,6 +424,7 @@
     h1 { font-size: 1.55rem; }
     .toolbar { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
     .del { opacity: 1; }
+    .auth-form { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -342,30 +433,52 @@
   <header>
     <div>
       <h1>Tasks</h1>
-      <p class="sub">FastAPI + SQLite · 前端直接调后端</p>
+      <p class="sub">FastAPI · 前端直接调后端</p>
     </div>
     <span class="status" id="status"><span class="dot"></span><span id="statusText">连接中</span></span>
   </header>
 
-  <form class="composer" id="form">
-    <input id="title" type="text" placeholder="要做什么？" maxlength="100" autocomplete="off" required>
-    <textarea id="desc" placeholder="补充说明（可选）" rows="1" maxlength="2000"></textarea>
-    <div class="composer-row">
-      <span class="hint">Enter 提交 · Shift + Enter 换行</span>
-      <button class="add" id="submitBtn" type="submit">添加任务</button>
+  <section class="auth-panel" aria-labelledby="authTitle">
+    <div class="auth-header">
+      <div>
+        <h2 class="auth-title" id="authTitle">登录</h2>
+        <p class="auth-hint" id="authHint">登录后管理属于你的任务</p>
+      </div>
+      <div class="auth-user" id="authUser" hidden>
+        <span>当前用户：<strong id="usernameText"></strong></span>
+        <button class="logout" id="logoutBtn" type="button">退出</button>
+      </div>
     </div>
-  </form>
 
-  <div class="toolbar">
-    <div class="filters" role="tablist">
-      <button class="filter active" data-filter="all" type="button">全部</button>
-      <button class="filter" data-filter="active" type="button">未完成</button>
-      <button class="filter" data-filter="done" type="button">已完成</button>
+    <form class="auth-form" id="authForm">
+      <input id="authUsername" type="text" placeholder="用户名（3-50 个字符）" minlength="3" maxlength="50" autocomplete="username" required>
+      <input id="authPassword" type="password" placeholder="密码（至少 6 个字符）" minlength="6" maxlength="100" autocomplete="current-password" required>
+      <button class="auth-submit" id="authSubmit" type="submit">登录</button>
+    </form>
+    <button class="auth-switch" id="authSwitch" type="button">还没有账号？注册</button>
+  </section>
+
+  <section id="taskApp" hidden>
+    <form class="composer" id="form">
+      <input id="title" type="text" placeholder="要做什么？" maxlength="100" autocomplete="off" required>
+      <textarea id="desc" placeholder="补充说明（可选）" rows="1" maxlength="2000"></textarea>
+      <div class="composer-row">
+        <span class="hint">Enter 提交 · Shift + Enter 换行</span>
+        <button class="add" id="submitBtn" type="submit">添加任务</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <div class="filters" role="tablist">
+        <button class="filter active" data-filter="all" type="button">全部</button>
+        <button class="filter" data-filter="active" type="button">未完成</button>
+        <button class="filter" data-filter="done" type="button">已完成</button>
+      </div>
+      <span class="count" id="count"></span>
     </div>
-    <span class="count" id="count"></span>
-  </div>
 
-  <div class="list" id="list"></div>
+    <div class="list" id="list"></div>
+  </section>
 
   <footer>
     <span>API：<code>GET /tasks</code></span>
@@ -379,10 +492,29 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const state = { tasks: [], filter: "all" };
+  const TOKEN_STORAGE_KEY = "task_api_token";
+  const state = {
+    tasks: [],
+    filter: "all",
+    authMode: "login",
+    token: localStorage.getItem(TOKEN_STORAGE_KEY),
+    user: null,
+  };
   const $ = (sel) => document.querySelector(sel);
 
   const els = {
+    authPanel: $(".auth-panel"),
+    authTitle: $("#authTitle"),
+    authHint: $("#authHint"),
+    authForm: $("#authForm"),
+    authUsername: $("#authUsername"),
+    authPassword: $("#authPassword"),
+    authSubmit: $("#authSubmit"),
+    authSwitch: $("#authSwitch"),
+    authUser: $("#authUser"),
+    usernameText: $("#usernameText"),
+    logout: $("#logoutBtn"),
+    taskApp: $("#taskApp"),
     list: $("#list"),
     form: $("#form"),
     title: $("#title"),
@@ -395,10 +527,24 @@
   };
 
   async function request(path, options = {}) {
+    // 所有业务请求共用这里：自动附加 JSON 请求头和当前登录用户的 token。
+    const headers = { ...(options.headers || {}) };
+    if (!(options.body instanceof URLSearchParams)) {
+      headers["Content-Type"] ||= "application/json";
+    }
+    if (state.token) {
+      headers.Authorization = `Bearer ${state.token}`;
+    }
+
     const res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
       ...options,
+      headers,
     });
+
+    if (res.status === 401 && state.token && path !== "/auth/login") {
+      clearSession();
+      throw new Error("登录已过期，请重新登录");
+    }
 
     if (!res.ok) {
       let message = `请求失败（${res.status}）`;
@@ -411,6 +557,41 @@
     }
 
     return res.status === 204 ? null : res.json();
+  }
+
+  function clearSession() {
+    state.token = null;
+    state.user = null;
+    state.tasks = [];
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    renderAuth();
+    render();
+  }
+
+  function renderAuth() {
+    const loggedIn = Boolean(state.user);
+    els.taskApp.hidden = !loggedIn;
+    els.authForm.hidden = loggedIn;
+    els.authSwitch.hidden = loggedIn;
+    els.authUser.hidden = !loggedIn;
+
+    if (loggedIn) {
+      els.authTitle.textContent = "已登录";
+      els.authHint.textContent = "当前账号只能看到自己创建的任务";
+      els.usernameText.textContent = state.user.username;
+      return;
+    }
+
+    const isRegistering = state.authMode === "register";
+    els.authTitle.textContent = isRegistering ? "注册" : "登录";
+    els.authHint.textContent = isRegistering
+      ? "创建账号后即可开始管理任务"
+      : "登录后管理属于你的任务";
+    els.authSubmit.textContent = isRegistering ? "注册" : "登录";
+    els.authSwitch.textContent = isRegistering
+      ? "已有账号？登录"
+      : "还没有账号？注册";
+    els.authPassword.autocomplete = isRegistering ? "new-password" : "current-password";
   }
 
   let toastTimer;
@@ -484,6 +665,12 @@
   }
 
   async function loadTasks() {
+    if (!state.token) {
+      state.tasks = [];
+      render();
+      return;
+    }
+
     try {
       state.tasks = await request("/tasks");
       render();
@@ -491,6 +678,59 @@
       toast(err.message);
     }
   }
+
+  els.authSwitch.addEventListener("click", () => {
+    state.authMode = state.authMode === "login" ? "register" : "login";
+    els.authPassword.value = "";
+    renderAuth();
+    els.authPassword.focus();
+  });
+
+  els.authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = els.authUsername.value.trim();
+    const password = els.authPassword.value;
+    if (!username || !password) return;
+
+    els.authSubmit.disabled = true;
+    try {
+      if (state.authMode === "register") {
+        await request("/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ username, password }),
+        });
+        state.authMode = "login";
+        renderAuth();
+        toast("注册成功，请登录");
+        els.authPassword.value = "";
+        els.authPassword.focus();
+        return;
+      }
+
+      const result = await request("/auth/login", {
+        method: "POST",
+        body: new URLSearchParams({ username, password }),
+      });
+      state.token = result.access_token;
+      localStorage.setItem(TOKEN_STORAGE_KEY, state.token);
+      state.user = await request("/auth/me");
+      renderAuth();
+      els.authForm.reset();
+      await loadTasks();
+      toast("登录成功");
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      els.authSubmit.disabled = false;
+    }
+  });
+
+  els.logout.addEventListener("click", () => {
+    clearSession();
+    state.authMode = "login";
+    renderAuth();
+    toast("已退出登录");
+  });
 
   async function toggleTask(task) {
     const next = !task.completed;
@@ -579,8 +819,22 @@
     }
   }
 
+  async function restoreSession() {
+    renderAuth();
+    if (!state.token) return;
+
+    try {
+      state.user = await request("/auth/me");
+      renderAuth();
+      await loadTasks();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  renderAuth();
   checkHealth();
-  loadTasks();
+  restoreSession();
 </script>
 </body>
 </html>
