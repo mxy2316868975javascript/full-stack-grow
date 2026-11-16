@@ -1,12 +1,10 @@
 from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from config import settings
-from database import STATIC_DIR, get_db
+from database import get_db
 from errors import NotFoundError
 from exception_handlers import register_exception_handlers
 from models import UserDB
@@ -26,14 +24,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
 
 @app.get("/", include_in_schema=False)
-def index():
-    """返回静态前端页面。"""
+def root():
+    """返回 API 入口提示；前端现在由独立的 Vite 应用运行。"""
 
-    return FileResponse(STATIC_DIR / "index.html")
+    return {"service": "Task API", "docs": "/docs"}
 
 
 @app.get("/health")
