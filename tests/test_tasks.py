@@ -127,6 +127,57 @@ def test_task_filter_parameters_are_validated(client):
     ).status_code == 422
 
 
+def test_tasks_can_be_sorted(client):
+    """任务列表应支持安全的字段排序和排序方向。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    low_priority = create_task(client, token, "Low", priority=1).json()
+    high_priority = create_task(client, token, "High", priority=5).json()
+    client.patch(
+        f"/tasks/{low_priority['id']}",
+        json={"completed": True},
+        headers=headers,
+    )
+
+    by_priority = client.get(
+        "/tasks?sort_by=priority&order=desc",
+        headers=headers,
+    )
+    by_completed = client.get(
+        "/tasks?sort_by=completed&order=desc",
+        headers=headers,
+    )
+
+    assert [task["title"] for task in by_priority.json()["items"]] == [
+        "High",
+        "Low",
+    ]
+    assert [task["title"] for task in by_completed.json()["items"]] == [
+        "Low",
+        "High",
+    ]
+
+
+def test_task_sort_parameters_are_validated(client):
+    """不在白名单内的排序字段和方向应返回 422。"""
+
+    register(client, "alice", "alice123")
+    token = login(client, "alice", "alice123")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get(
+        "/tasks?sort_by=owner_id",
+        headers=headers,
+    ).status_code == 422
+    assert client.get(
+        "/tasks?order=random",
+        headers=headers,
+    ).status_code == 422
+
+
 def test_user_cannot_update_or_delete_another_users_task(client):
     """任务详情、更新和删除都必须检查所属用户。"""
 

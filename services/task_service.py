@@ -36,8 +36,10 @@ def list_tasks(
     page_size: int,
     completed: bool | None = None,
     priority: int | None = None,
+    sort_by: str = "id",
+    order: str = "asc",
 ) -> tuple[list[TaskDB], int]:
-    """按筛选条件查询当前用户的一页任务，并返回匹配总数。"""
+    """按筛选和排序条件查询当前用户的一页任务，并返回匹配总数。"""
 
     offset = (page - 1) * page_size
     tasks = task_repository.list_by_owner(
@@ -47,6 +49,8 @@ def list_tasks(
         page_size,
         completed,
         priority,
+        sort_by,
+        order,
     )
     total = task_repository.count_by_owner(db, user_id, completed, priority)
     return tasks, total

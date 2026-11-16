@@ -4,6 +4,13 @@ from sqlalchemy.orm import Session
 from models import TaskDB
 
 
+SORT_COLUMNS = {
+    "id": TaskDB.id,
+    "priority": TaskDB.priority,
+    "completed": TaskDB.completed,
+}
+
+
 def _owner_filters(
     user_id: int,
     completed: bool | None,
@@ -33,16 +40,22 @@ def list_by_owner(
     limit: int,
     completed: bool | None = None,
     priority: int | None = None,
+    sort_by: str = "id",
+    order: str = "asc",
 ) -> list[TaskDB]:
-    """按用户和可选条件读取一页任务，按主键排序保证结果稳定。"""
+    """按用户、筛选和排序条件读取一页任务。"""
 
-    return db.scalars(
+    sort_column = SORT_COLUMNS[sort_by]
+    sort_expression = sort_column.desc() if order == "desc" else sort_column.asc()
+    query = (
         select(TaskDB)
         .where(*_owner_filters(user_id, completed, priority))
-        .order_by(TaskDB.id)
-        .offset(offset)
-        .limit(limit)
-    ).all()
+        .order_by(sort_expression)
+    )
+    if sort_by != "id":
+        query = query.order_by(TaskDB.id.asc())
+
+    return db.scalars(query.offset(offset).limit(limit)).all()
 
 
 def count_by_owner(

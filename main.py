@@ -1,4 +1,5 @@
 from math import ceil
+from typing import Literal
 
 from fastapi import Depends, FastAPI, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,6 +88,8 @@ def list_tasks(
     page_size: int = Query(default=20, ge=1, le=100),
     completed: bool | None = Query(default=None),
     priority: int | None = Query(default=None, ge=0, le=5),
+    sort_by: Literal["id", "priority", "completed"] = Query(default="id"),
+    order: Literal["asc", "desc"] = Query(default="asc"),
     current_user: UserDB = Depends(auth_service.get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -99,6 +102,8 @@ def list_tasks(
         page_size,
         completed,
         priority,
+        sort_by,
+        order,
     )
     return {
         "items": tasks,
